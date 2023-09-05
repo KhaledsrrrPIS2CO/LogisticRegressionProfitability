@@ -1,7 +1,9 @@
+import matplotlib
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 import plotly.express as px
+
 
 
 def read_and_preprocess_data(file_path):
@@ -250,24 +252,26 @@ def plot_profit_pct_vs_normsize(df):
     # Show plot
     fig.show()
 
-def plot_profit_dollars_vs_normsize(df):
-    # Load the data
 
-    # Calculate trade size in dollars
-    df['TradeSizeDollars'] = df['Buy_Price'] * df['Contracts']
+# def plot_profit_dollars_vs_normsize(df):
+#     # Load the data
+#
+#     # Calculate trade size in dollars
+#     df['TradeSizeDollars'] = df['Buy_Price'] * df['Contracts']
+#
+#     # Normalize TradeSizeDollars based on win/loss
+#     max_profit = df['ProfitLoss'].max()
+#     min_loss = df['ProfitLoss'].min()
+#
+#     df['NormalizedTradeSize'] = df['TradeSizeDollars'].apply(lambda x: x / max_profit if x > 0 else x / abs(min_loss))
+#
+#     # Plot
+#     fig = px.scatter(df, x='NormalizedTradeSize', y='ProfitLoss',
+#                      color='Profitable',
+#                      hover_data=['TradeID', 'Symbol', 'Buy_Price', 'Sell_Price', 'Contracts'],
+#                      title='Profit in Dollars vs Normalized Trade Size')
+#     fig.show()
 
-    # Normalize TradeSizeDollars based on win/loss
-    max_profit = df['ProfitLoss'].max()
-    min_loss = df['ProfitLoss'].min()
-
-    df['NormalizedTradeSize'] = df['TradeSizeDollars'].apply(lambda x: x / max_profit if x > 0 else x / abs(min_loss))
-
-    # Plot
-    fig = px.scatter(df, x='NormalizedTradeSize', y='ProfitLoss',
-                     color='Profitable',
-                     hover_data=['TradeID', 'Symbol', 'Buy_Price', 'Sell_Price', 'Contracts'],
-                     title='Profit in Dollars vs Normalized Trade Size')
-    fig.show()
 
 def plot_profit_vs_tradesize(df):
     # Calculate trade size in dollars
@@ -284,6 +288,28 @@ def plot_profit_vs_tradesize(df):
                      title='Profit in Dollars vs Trade Size in Dollars')
     fig.show()
 
+
+def analyze_correlations(df):
+    # Ensure that 'Profitable' is in DataFrame, else exit
+    if 'Profitable' not in df.columns:
+        print("Error: 'Profitable' column not found in the DataFrame.")
+        return
+
+    # Filter numeric columns only
+    numeric_df = df.select_dtypes(include=['number'])
+
+    # Calculate the correlation matrix
+    correlation_matrix = numeric_df.corr()
+
+    # Display the correlation matrix
+    print("Correlation Matrix:")
+    print(correlation_matrix)
+
+    # Visualize the correlation matrix using a heatmap
+    plt.figure(figsize=(12, 8))
+    sns.heatmap(correlation_matrix, annot=True, fmt=".2f", cmap='coolwarm')
+    plt.title("Correlation Matrix")
+    plt.show()
 
 def main(file_path):
     """
@@ -315,8 +341,9 @@ def main(file_path):
         histogram_trade_distribution_by_minute(df)
         # visualize_trades(df)
         plot_profit_pct_vs_normsize(df)
-        plot_profit_dollars_vs_normsize(df)
+        # plot_profit_dollars_vs_normsize(df)
         plot_profit_vs_tradesize(df)
+        analyze_correlations(df)
     else:
         print("Failed to read and preprocess data. Check the file path and data format.")
 

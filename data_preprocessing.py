@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 
 # Constants
 ORIGINAL_FILE = '/Users/khaled/Downloads/optionsData.csv'
@@ -16,25 +17,31 @@ def process_row_pair(buy_row, sell_row):
     Returns:
     - dict: The transformed row data.
     """
+    try:
+        profit_loss = sell_row['ContractsProfitLoss']
+        if isinstance(profit_loss, str) and '(' in profit_loss:
+            profit_loss = profit_loss.replace('(', '-').replace(')', '')
 
-    profit_loss = sell_row['ContractsProfitLoss']
-    if isinstance(profit_loss, str) and '(' in profit_loss:
-        profit_loss = profit_loss.replace('(', '-').replace(')', '')
-
-    return {
-        'TradeID': buy_row['TradeID'],
-        'Buy_Time': buy_row['Time'],
-        'Sell_Time': sell_row['Time'],
-        'Symbol': buy_row['Symbol'],
-        'Buy_Price': buy_row['Price'],
-        'Sell_Price': sell_row['Price'],
-        'Contracts': pd.to_numeric(buy_row['ContractsProfitLoss'], errors='coerce'),
-        'ProfitLoss': pd.to_numeric(profit_loss, errors='coerce'),
-        'ProfitPercent': buy_row['ProfitPercent'],
-        'Profitable': 1 if pd.to_numeric(profit_loss, errors='coerce') >= 0 else 0,
-        'Buy_Comm': buy_row['Comm'],
-        'Sell_Comm': sell_row['Comm'],
-    }
+        return {
+            'TradeID': buy_row['TradeID'],
+            'Buy_Time': buy_row['Time'],
+            'Sell_Time': sell_row['Time'],
+            'Symbol': buy_row['Symbol'],
+            'Buy_Price': buy_row['Price'],
+            'Sell_Price': sell_row['Price'],
+            'Contracts': pd.to_numeric(buy_row['ContractsProfitLoss'], errors='coerce'),
+            'ProfitLoss': pd.to_numeric(profit_loss, errors='coerce'),
+            'ProfitPercent': buy_row['ProfitPercent'],
+            'Profitable': 1 if pd.to_numeric(profit_loss, errors='coerce') >= 0 else 0,
+            'Buy_Comm': buy_row['Comm'],
+            'Sell_Comm': sell_row['Comm'],
+        }
+    except KeyError as e:
+        print(f"KeyError: {e} is not found.")
+        return None
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+        return None
 
 
 def transform_options_data(input_path, output_path):
@@ -48,7 +55,14 @@ def transform_options_data(input_path, output_path):
     Returns:
     - DataFrame: Transformed data.
     """
-    df = pd.read_csv(input_path)
+    # Read CSV file and handle the case if the file is not found
+    try:
+        df = pd.read_csv(input_path)
+    except FileNotFoundError:
+        print("File not found.")
+        return None  # Exit the function early
+
+    # The rest of the code remains unchanged
     transformed_data = [process_row_pair(df.iloc[i], df.iloc[i + 1]) for i in range(0, df.shape[0], 2)]
     new_df = pd.DataFrame(transformed_data)
     new_df.to_csv(output_path, index=False)
@@ -67,9 +81,25 @@ def convert_tradeid_to_integer_and_save(file_path):
     Returns:
     - DataFrame: Data with TradeID as integers.
     """
-    df = pd.read_csv(file_path)
-    df['TradeID'] = df['TradeID'].astype(int)
-    df.to_csv(file_path, index=False)
+    try:
+        # Attempt to read the CSV file
+        df = pd.read_csv(file_path)
+
+        # Attempt to convert the TradeID column to integer
+        df['TradeID'] = df['TradeID'].astype(int)
+
+        # Attempt to save the file
+        df.to_csv(file_path, index=False)
+
+    except FileNotFoundError:
+        print("File not found.")
+        return None
+    except ValueError as e:
+        print(f"ValueError: {e}")
+        return None
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+        return None
 
     return df
 
@@ -146,8 +176,19 @@ def preprocess_profit_percent(df):
     Returns:
     - pandas.DataFrame: The dataframe with the preprocessed ProfitPercent column.
     """
-    # Remove the % sign, convert to float, and scale
-    df['ProfitPercent'] = (df['ProfitPercent'].str.replace('%', '').astype(float) / 100.0).round(2)
+    try:
+        # Remove the % sign, convert to float, and scale
+        df['ProfitPercent'] = (df['ProfitPercent'].str.replace('%', '').astype(float) / 100.0).round(2)
+    except KeyError:
+        print("Column 'ProfitPercent' not found in DataFrame.")
+        return None
+    except ValueError as ve:
+        print(f"ValueError: Could not convert data. {ve}")
+        return None
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+        return None
+
     return df
 
 
@@ -166,6 +207,7 @@ def extract_trade_minute(df):
 
 
 
+
 if __name__ == '__main__':
     transformed_data = transform_options_data(ORIGINAL_FILE, CLEAN_FILE)
     transformed_data = convert_tradeid_to_integer_and_save(CLEAN_FILE)
@@ -181,9 +223,7 @@ if __name__ == '__main__':
 
     check_empty_cells(transformed_data)
 
-    # Assuming df has already been read from the CSV:
     anomalies = find_trade_time_anomalies(transformed_data)
-
     if 'early_trade' in anomalies:
         print(f"The first trade with a buy time before 09:30:00 is TradeID: {anomalies['early_trade']}")
     else:
@@ -197,3 +237,4 @@ if __name__ == '__main__':
 
     print("\n#### Data types: \n", transformed_data.dtypes)
     print(type(transformed_data))
+
